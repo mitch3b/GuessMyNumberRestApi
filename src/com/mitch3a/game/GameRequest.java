@@ -1,5 +1,9 @@
 package com.mitch3a.game;
 
+/**
+ * Class holds data about a given game request. Note: creation is package private and
+ * all fetching/updating of games should be done in UpdateListener
+ */
 public class GameRequest {
     final String id;
     final Player requester;
@@ -7,7 +11,7 @@ public class GameRequest {
     final Player starterPlayer; //if null, will choose randomly
     GameState gameState;
 
-    public GameRequest(String id, Player requester, Player accepter, Player starterPlayer) {
+    GameRequest(String id, Player requester, Player accepter, Player starterPlayer) {
         if(id == null || id == "") {
             throw new IllegalArgumentException("Cannot create game request with null or empty id");
         }
@@ -37,7 +41,7 @@ public class GameRequest {
         this.gameState = GameState.REQUESTED;
     }
 
-    public void reject(Player player) {
+    void reject(Player player) {
         if(requester.equals(player)) {
             throw new IllegalArgumentException(String.format("Cannot reject game $s with player %s because they are not the accepter %s",
                     id, requester.getId(), accepter.getId()));

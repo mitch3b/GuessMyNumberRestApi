@@ -10,18 +10,28 @@ public class UpdateListener {
         this.gameDAO = gameDAO;
     }
 
-    //TODO too ambiguious to call this for setup and for guessing in same way
-    public void updateGame(String gameId, Player player, String turn) {
+    public void setupGame(String gameId, Player player, String turn) {
         Game game = gameDAO.getGame(gameId);
 
-        game.takeTurn(player, turn);
+        game.takeSetupTurn(player, turn);
+        gameDAO.updateGame(game);
+    }
+
+    public void makeGuess(String gameId, Player player, String turn) {
+        Game game = gameDAO.getGame(gameId);
+
+        game.makeGuess(player, turn);
         gameDAO.updateGame(game);
     }
 
     public GameRequest requestGame(Player requester, Player opponent) {
+        return requestGame(requester, opponent, null);
+    }
+
+    public GameRequest requestGame(Player requester, Player opponent, Player first) {
         String id = UUID.randomUUID().toString();
 
-        GameRequest request = new GameRequest(id, requester, opponent, null);
+        GameRequest request = new GameRequest(id, requester, opponent, first);
         gameDAO.addRequest(request);
 
         return request;
@@ -35,11 +45,12 @@ public class UpdateListener {
 
         Game game = new Game(request);
 
-        gameDAO.updateGame(game);
+        gameDAO.acceptRequest(game);
 
         return game;
     }
 
+    //TODO might have to fetch the gameRequest by id. Look for other cases of this as well
     public void rejectGame(Player accepter, GameRequest request) {
         if(!request.accepter.equals(accepter)) {
             throw new IllegalArgumentException(String.format("Player %s can't accept game %s bc they are not accepter %s",

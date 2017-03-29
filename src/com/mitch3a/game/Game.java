@@ -4,13 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by mitchken on 3/26/17.
+ * Class holds data about a given game. Note: creation is package private and
+ * all fetching/updating of games should be done in UpdateListener
  */
 public class Game {
     final String id;
     final Player p1;
     final Player p2;
-    final Player currentPlayer;
+
+    Player currentPlayer;
     int p1Number = -1;
     int p2Number = -1;
     final List<Integer> p1Guesses;
@@ -18,18 +20,18 @@ public class Game {
     GameState gameState;
 
     //Used for going from a request to a started game
-    public Game(GameRequest request) {
+    Game(GameRequest request) {
         this.id = request.id;
         this.p1 = request.requester;
         this.p2 = request.accepter;
-        this.currentPlayer = request.starterPlayer;
+        this.currentPlayer = (request.starterPlayer != null) ? request.starterPlayer : getRandomPlayer(p1, p2);
         this.gameState = GameState.SETUP;
         this.p1Guesses = new ArrayList<>();
         this.p2Guesses = new ArrayList<>();
     }
 
     //If only in setup
-    public Game(String id, Player p1, Player p2, Player currentPlayer) {
+    Game(String id, Player p1, Player p2, Player currentPlayer) {
         this.id = id;
         this.p1 = p1;
         this.p2 = p2;
@@ -39,56 +41,8 @@ public class Game {
         this.gameState = GameState.SETUP;
     }
 
-    public void setup(Player player, String setupData) {
-        int number = Integer.parseInt(setupData);
-
-        if(!GameState.SETUP.equals(gameState)) {
-            throw new IllegalArgumentException(String.format("Cannot set number to %d for player %s. Game is not in setup state, it is in the %s state.",
-                    number, player.getId(), gameState));
-        }
-
-        if(p1.equals(player)) {
-            if(p1Number != -1) {
-                throw new IllegalArgumentException(
-                        String.format("Can't set number %d for player %s. Number already set to %d", number, player.getId(), p1Number));
-            }
-
-            p1Number = number;
-        }
-        else if(p2.equals(player)) {
-            if(p2Number != -1) {
-                throw new IllegalArgumentException(
-                        String.format("Can't set number %d for player %s. Number already set to %d", number, player.getId(), p2Number));
-            }
-
-            p2Number = number;
-        }
-        else {
-            throw new IllegalArgumentException("Player " + player.getId() + " not in game " + id);
-        }
-
-        if(p1Number != -1 && p2Number != -1) {
-            gameState = GameState.IN_PROGRESS;
-        }
-    }
-
     public String getId() {
         return id;
-    }
-
-    public void takeTurn(Player player, String turnString) {
-        int number = parseTurn(turnString);
-        boolean isP1 = isP1(player);
-
-        switch(gameState) {
-        case SETUP: takeSetupTurn(isP1, number);
-        break;
-        case IN_PROGRESS: makeGuess(isP1, player, number);
-        break;
-        }
-
-        throw new IllegalArgumentException(String.format("Player %s cannot make turn %s because game is in state %s",
-                player.getId(), turnString, gameState));
     }
 
     private int parseTurn(String turnString) {
@@ -124,7 +78,15 @@ public class Game {
 
     }
 
-    private void takeSetupTurn(boolean isP1, int number) {
+    void takeSetupTurn(Player player, String turnString) {
+        if(!GameState.SETUP.equals(gameState)) {
+            throw new IllegalArgumentException(String.format("Player %s cannot make setup turn %s because game is in state %s",
+                    player.getId(), turnString, gameState));
+        }
+
+        int number = parseTurn(turnString);
+        boolean isP1 = isP1(player);
+
         if(isP1) {
             if(p1Number != -1) {
                 throw new IllegalArgumentException(String.format("Can't setup p1 %s with number %d because already setup to number %d",
@@ -141,9 +103,21 @@ public class Game {
 
             p2Number = number;
         }
+
+        if(p1Number != -1 && p2Number != -1) {
+            gameState = GameState.IN_PROGRESS;
+        }
     }
 
-    private void makeGuess(boolean isP1, Player player, int guess) {
+    void makeGuess(Player player, String turnString) {
+        if(!GameState.IN_PROGRESS.equals(gameState)) {
+            throw new IllegalArgumentException(String.format("Player %s cannot make setup turn %s because game is in state %s",
+                    player.getId(), turnString, gameState));
+        }
+
+        int guess = parseTurn(turnString);
+        boolean isP1 = isP1(player);
+
         if(!player.equals(currentPlayer)) {
             throw new IllegalArgumentException(String.format("Cannot make guess <%d> in game <%s> because it's not <%s>'s turn.",
                     guess, id, player.getId()));
@@ -166,7 +140,12 @@ public class Game {
 
         prevGuesses.add(guess);
 
-        //TODO track game completion? or calc on the fly
+        if(guess == correctNumber) {
+            gameState = GameState.COMPLETE;
+        }
+        else {
+            currentPlayer = nextPlayer;
+        }
     }
 
     public boolean isGameComplete() {
